@@ -9,6 +9,15 @@ mkdir('04-copy-directory/files-copy', { recursive: true }, (err) => {
   if (err) throw err;
 });
 
+readdir(path.join('04-copy-directory/files-copy'))
+.then(result => {
+  result.forEach(file => {
+  fs.unlink(`04-copy-directory/files-copy/${file}`, (err) => {
+  if (err) throw err;
+  })
+})
+});
+
 readdir(path.join('04-copy-directory/files'))
 .then(result => {
   result.forEach(file => {
@@ -17,5 +26,3 @@ readdir(path.join('04-copy-directory/files'))
 }).catch(e => {
   console.log('error: ', e);
 })
-
-
