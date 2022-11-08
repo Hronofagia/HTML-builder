@@ -8,8 +8,9 @@ const process = require('process');
 const stream = fs.createWriteStream(path.join('02-write-file/text.txt'), 'utf8')
 
 const rl = readline.createInterface({ input, output });
-
-rl.question('Write something: ', (el) => {stream.write(`${el}\n`)});
+stream.on('open', () => {
+  console.log('Write something:');
+})
 rl.on('line', (input) => {
   if (input === 'exit') {
     rl.close()

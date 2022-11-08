@@ -4,15 +4,30 @@ const path = require('path');
 const { readdir, mkdir, copyFile } = require('fs/promises');
 const readline = require('readline');
 const { resourceLimits } = require('node:worker_threads');
+const { promisify } = require('util');
+const rmdir = promisify(fs.rmdir);
+const unlink = promisify(fs.unlink);
+ 
 
-mkdir('06-build-page/project-dist', { recursive: true }, (err) => {
-  if (err) throw err;
-});
+rmdirs('06-build-page/project-dist')
+.then(() => mkdir('06-build-page/project-dist', { recursive: true }))
+.then(() => {
+  deepCopy('06-build-page/assets', '06-build-page/project-dist/assets')
+})
+.then(() => {
+  mergeHtml()
+})
+.then(() => {
+  mergeCSS()
+})
 
-let html 
-const stream = fs.createReadStream(path.join('06-build-page/template.html'), 'utf8');
-let re = /{{\w+}}/gi
-stream.on('data', (data) => {
+
+function mergeHtml() {
+  let html 
+  const stream = fs.createReadStream(path.join('06-build-page/template.html'), 'utf8');
+  let re = /{{\w+}}/gi
+  stream.on('data', async (data) => {
+  
   html = data
   let fileName = data.match(re).map(el => el.slice(2, el.length - 2))
   fileName.forEach((el) => {
@@ -24,11 +39,14 @@ stream.on('data', (data) => {
     }) 
   })
 });
+}
 
-const writeStream = fs.createWriteStream(path.join('06-build-page/project-dist/style.css'), {encoding: 'utf8', flag: {open: 'r+'}})
 
-readdir(path.join('06-build-page/styles'), {withFileTypes: true})
-.then(result => {
+ function mergeCSS() {
+  const writeStream = fs.createWriteStream(path.join('06-build-page/project-dist/style.css'), {encoding: 'utf8', flag: {open: 'r+'}})
+
+  readdir(path.join('06-build-page/styles'), {withFileTypes: true})
+  .then(result => {
   result.filter(item => {
     return path.extname(item.name) === '.css'
   }).forEach(file => {
@@ -36,10 +54,31 @@ readdir(path.join('06-build-page/styles'), {withFileTypes: true})
     style.on('data', (data) => {
       writeStream.write(`${data}\n`)
     });
+  })})
+  .catch(e => {
+    console.log('error: ', e);
   })
-}).catch(e => {
-  console.log('error: ', e);
-})
+}
+
+async function rmdirs(dir) {
+  let entries = []
+  try {
+    entries= await readdir(dir, { withFileTypes: true });
+  } catch(e) {
+    console.log('no file');
+  }
+    
+  await Promise.all(entries.map(entry => {
+    let fullPath = path.join(dir, entry.name);
+    return entry.isDirectory() ? rmdirs(fullPath) : unlink(fullPath);
+  }));
+  try {
+    await rmdir(dir);
+  } catch(e) {
+    console.log('no dir');
+  }
+};
+
 
 async function deepCopy(src,dest) {
     const entries = await readdir(src, {withFileTypes: true});
@@ -50,5 +89,3 @@ async function deepCopy(src,dest) {
         file.isDirectory() ? (await deepCopy(srcPath, destPath)) : (await copyFile(srcPath, destPath));
     }
 }
-
-deepCopy('06-build-page/assets', '06-build-page/project-dist/assets')
