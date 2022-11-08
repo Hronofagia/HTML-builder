@@ -1,9 +1,7 @@
 const fs = require('node:fs');
 const { constants } = require('fs');
-const { copyFile } = require('fs/promises');
-const { mkdir } = require('fs');
 const path = require('path');
-const { readdir } = require('fs/promises');
+const { readdir, mkdir, copyFile } = require('fs/promises');
 const readline = require('readline');
 const { resourceLimits } = require('node:worker_threads');
 
@@ -43,25 +41,14 @@ readdir(path.join('06-build-page/styles'), {withFileTypes: true})
   console.log('error: ', e);
 })
 
+async function deepCopy(src,dest) {
+    const entries = await readdir(src, {withFileTypes: true});
+    await mkdir(dest, { recursive: true });
+    for(let file of entries) {
+        const srcPath = path.join(src, file.name);
+        const destPath = path.join(dest, file.name);
+        file.isDirectory() ? (await deepCopy(srcPath, destPath)) : (await copyFile(srcPath, destPath));
+    }
+}
 
-mkdir('06-build-page/project-dist/assets', { recursive: true }, (err) => {
-  if (err) throw err;
-});
-mkdir('06-build-page/project-dist/assets/fonts', { recursive: true }, (err) => {
-  if (err) throw err;
-});
-mkdir('06-build-page/project-dist/assets/img', { recursive: true }, (err) => {
-  if (err) throw err;
-});
-mkdir('06-build-page/project-dist/assets/svg', { recursive: true }, (err) => {
-  if (err) throw err;
-});
-
-readdir(path.join('06-build-page/project-dist/assets/fonts'))
-.then(result => {
-  result.forEach(file => {
-    copyFile(path.join(`06-build-page/assets/fonts/${file}`), path.join(`06-build-page/project-dist/assets/fonts/${file}`));
-  })
-}).catch(e => {
-  console.log('error: ', e);
-})
+deepCopy('06-build-page/assets', '06-build-page/project-dist/assets')
